@@ -135,3 +135,7 @@ if __name__ == "__main__":
 [2024-02-07 16:08:16,529] [pid:79642] [level:ERROR] [logid:default] [CPU: 10.0] [Memory: 90.9] [GPU: 0] Failed to initialize config: 'qwen2' 
 [2024-02-07 16:12:48,695] [pid:80158] [level:ERROR] [logid:17072935685806808] [CPU: 22.2] [Memory: 95.1] [GPU: 0] Failed to process request: 'Qwen2ForCausalLM' object has no attribute 'chat'
 ```
+
+# 贡献
+
+欢迎任何形式的贡献代码哇，提交pr之前，请现在本地安装 `pylint` 并执行 `pylint $(git ls-files '*.py')` 消除所有警告。
