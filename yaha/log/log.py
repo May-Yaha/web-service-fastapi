@@ -1,16 +1,14 @@
 """
 Logging utilities.
 """
-import os
-import time
-import random
-
-import psutil
-import GPUtil
 import logging
+import os
+import random
 import threading
+import time
 
-from logging.handlers import TimedRotatingFileHandler
+import GPUtil
+import psutil
 
 
 class CustomLogRecord(logging.LogRecord):
@@ -30,7 +28,7 @@ class CustomLogRecord(logging.LogRecord):
             None
 
         """
-        super(CustomLogRecord, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.pid = os.getpid()
 
 
@@ -69,7 +67,7 @@ class CustomFormatter(logging.Formatter):
         """
         if 'logid' not in record.__dict__:
             record.__dict__['logid'] = 'default'
-        return super(CustomFormatter, self).format(record)
+        return super().format(record)
 
 
 class LogHelper:

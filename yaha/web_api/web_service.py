@@ -2,17 +2,16 @@
 This module provides the web service for Tide.
 """
 import os
-import random
 import time
-import uvicorn
 import json
-
-from pydantic import BaseModel
 from abc import ABC, abstractmethod
+import uvicorn
+
 from fastapi import FastAPI, Request, HTTPException
 
 from yaha.log.log import LogHelper
 from yaha.web_api.factory import HandlerFactory
+from yaha.web_api.request_process import RequestProcess
 
 
 class ConfigHandler(ABC):
@@ -55,7 +54,6 @@ class ConfigHandler(ABC):
             无返回值。
 
         """
-        pass
 
     def bootstrap(self):
         """
@@ -103,7 +101,6 @@ class RequestHandler(ABC):
         Returns:
             None
         """
-        pass
 
     @abstractmethod
     def run(self, processed_input):
@@ -115,7 +112,6 @@ class RequestHandler(ABC):
         Returns:
 
         """
-        pass
 
     @abstractmethod
     def post_process(self, inference_result):
@@ -127,7 +123,6 @@ class RequestHandler(ABC):
         Returns:
 
         """
-        pass
 
 
 def create_route_handler(handler_type):
@@ -149,60 +144,9 @@ def create_route_handler(handler_type):
         Returns:
 
         """
-        app_handler, request_handler = HandlerFactory.get_handler(handler_type)
+        handler = RequestProcess(request, handler_type)
+        return await handler.process_request()
 
-        request_model: Optional[Type[BaseModel]] = HandlerFactory._context[handler_type].get("request")
-        response_model: Optional[Type[BaseModel]] = HandlerFactory._context[handler_type].get("response")
-
-        if request.headers.get("logid"):
-            log_id = request.headers.get("logid")
-        else:
-            log_id = str(int(time.time() * 1000)) + str(random.randint(0, 9999))
-        LogHelper.set_logid(log_id)
-        LogHelper.info(f"Request handler type: {handler_type}")
-        try:
-            # 参数解析及校验处理
-            # request_body = await parse_request(request)
-            st = time.time()
-            # 获取请求体并解析为模型（如果定义了请求模型）
-            if request_model:
-                try:
-                    request_body = await request.json()
-                    request_data = request_model(**request_body)
-                except Exception as e:
-                    LogHelper.error(f"Failed to parse request: {e}")
-                    raise HTTPException(status_code=400, detail=str(e))
-            else:
-                request_data = await request.json()
-
-            st1 = time.time()
-
-            LogHelper.info(f"cost:{st1 - st} s, Request body: {request}, Parse Params: {request_data}")
-
-            # 前处理
-            pre_processed = request_handler.pre_process(request_data)
-
-            st2 = time.time()
-            LogHelper.info(f"cost:{st2 - st1} s, Pre processed: {pre_processed}")
-
-            # 推理
-            result = request_handler.run(pre_processed)
-            st3 = time.time()
-            LogHelper.info(f"cost:{st3 - st2} s, Inference result: {result}")
-
-            post_processed_result = request_handler.post_process(result)
-            st4 = time.time()
-            LogHelper.info(f"cost:{st4 - st3} s, Fromat result: {post_processed_result}")
-
-            # 如果定义了响应模型，将结果转换为该模型
-            if response_model:
-                response_data = response_model(**post_processed_result)
-                return response_data
-            else:
-                return post_processed_result
-        except Exception as e:
-            LogHelper.error(f"Failed to process request: {e}")
-            raise
 
     return route_handler
 
@@ -225,9 +169,9 @@ async def parse_request(request: Request):
         return ""
     try:
         request_body = await request.json()
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         LogHelper.error("Invalid JSON data")
-        raise HTTPException(status_code=400, detail="Invalid JSON data")
+        raise HTTPException(status_code=400, detail="Invalid JSON data") from e
     return request_body
 
 
@@ -244,9 +188,10 @@ def start_app(host="0.0.0.0", port=8000):
     """
     app = FastAPI()
 
-    for handler_type, handler_cls in HandlerFactory._handlers.items():
+    handlers = HandlerFactory.get_handlers()
+    for handler_type, handler_cls in handlers.items():
         route_handler = create_route_handler(handler_type)
-        LogHelper.debug(f"Register route: {handler_type}")
+        LogHelper.debug(f"Register route: {handler_type}, handler_cls: {handler_cls}")
         app.post(f"{handler_type}")(route_handler)
 
     uvicorn.run(app, host=host, port=port)

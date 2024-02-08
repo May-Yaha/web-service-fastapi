@@ -40,9 +40,8 @@ class ChatHandler(RequestHandler):
         Returns:
             dict: 预处理后的请求体。
         """
-        print("model_name: ", self.app_config.app_name)
         # 实现特定于聊天的预处理
-        return request_body
+        return request_body.message
 
     def run(self, processed_input):
         """
@@ -55,7 +54,7 @@ class ChatHandler(RequestHandler):
             dict: 包含聊天响应的字典
         """
         # 实现特定于聊天的运行逻辑
-        return {"response": "Chat response"}
+        return {"response": processed_input}
 
     def post_process(self, inference_result):
         """
