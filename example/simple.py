@@ -1,3 +1,6 @@
+"""
+Simple example for chatbot.
+"""
 from pydantic import BaseModel
 
 from yaha.web_api.web_service import ConfigHandler, RequestHandler, start_app
