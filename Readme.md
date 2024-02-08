@@ -15,6 +15,26 @@ cd web-service-fastapi
 pip install -e .
 ```
 
+# 快速体验
+
+```shell
+# clone本仓库
+git clone https://github.com/May-Yaha/web-service-fastapi.git 
+
+# 安装依赖
+cd web-service-fastapi
+pip install -e .
+
+# 启动服务
+python example/simple.py
+```
+启动会输出以下信息：
+![img.png](public/img1.png)
+
+访问 http://0.0.0.0:8000/docs 即可看到接口文档。
+
+![img.png](public/img.png)
+
 # 使用说明
 
 引入框架核心包：

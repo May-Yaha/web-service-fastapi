@@ -7,6 +7,7 @@ import time
 import uvicorn
 import json
 
+from pydantic import BaseModel
 from abc import ABC, abstractmethod
 from fastapi import FastAPI, Request, HTTPException
 
@@ -14,69 +15,239 @@ from yaha.log.log import LogHelper
 from yaha.web_api.factory import HandlerFactory
 
 
-class ChatAppHandler(ConfigHandler):
-    def initialize(self):
+class ConfigHandler(ABC):
+    """
+    Abstract class for config handler.
+    """
+
+    def __init__(self):
         """
-        初始化方法，设置应用程序名称为"test"。
+        初始化函数，用于初始化配置。
 
         Args:
             无参数。
 
         Returns:
             无返回值。
+
+        Raises:
+            Exception: 初始化失败时抛出异常。
         """
-        self.app_name = "test"
+        try:
+            st = time.time()
+            self.bootstrap()
+            self.initialize()
+            et = time.time()
+            LogHelper.info(f"Initialize config success, cost {et - st}s")
+        except Exception as e:
+            LogHelper.error(f"Failed to initialize config: {e}")
+            raise
+
+    @abstractmethod
+    def initialize(self):
+        """
+        初始化方法，需要在子类中实现。
+
+        Args:
+            无参数。
+
+        Returns:
+            无返回值。
+
+        """
+        pass
+
+    def bootstrap(self):
+        """
+        启动web服务
+
+        Args:
+            无
+
+        Returns:
+            无
+        """
+        log_file = os.environ.get("LOG_FILE", "logs/web_service.py.log")
+        # if not os.path.exists(log_file):
+        #     LogHelper.error(f"Log file {log_file} does not exist.")
+        #     raise Exception(f"Log file {log_file} does not exist.")
+        LogHelper.setup_logger(log_file)
+        LogHelper.info("Starting web service")
 
 
-class ChatHandler(RequestHandler):
+class RequestHandler(ABC):
+    """
+    Abstract class for request handler.
+    """
+
+    def __init__(self, app_handler):
+        """
+        初始化函数，将传入的app_handler赋值给self.app_config
+
+        Args:
+            app_handler (object): 应用程序配置对象
+
+        Returns:
+            None
+        """
+        self.app_config = app_handler
+
+    @abstractmethod
     def pre_process(self, request_body):
         """
-        对请求体进行预处理。
+        前处理函数，将传入的request_body进行预处理，并返回预处理后的结果。
 
         Args:
-            request_body (dict): 请求体，包含聊天信息。
+            request_body (dict): 请求体
 
         Returns:
-            dict: 预处理后的请求体。
+            None
         """
-        print("model_name: ", self.app_config.app_name)
-        # 实现特定于聊天的预处理
-        return request_body
+        pass
 
+    @abstractmethod
     def run(self, processed_input):
         """
-        运行聊天逻辑
-
+        推理函数，将传入的processed_input进行推理，并返回推理结果。
         Args:
-            processed_input (dict): 经过处理的输入数据
+            processed_input:
 
         Returns:
-            dict: 包含聊天响应的字典
-        """
-        # 实现特定于聊天的运行逻辑
-        return {"response": "Chat response"}
 
+        """
+        pass
+
+    @abstractmethod
     def post_process(self, inference_result):
         """
-        对聊天机器人的推断结果进行后处理。
-
+        后处理函数，将传入的inference_result进行后处理，并返回后处理后的结果。
         Args:
-            inference_result (Any): 聊天机器人的推断结果。
+            inference_result:
 
         Returns:
-            Any: 后处理后的推断结果。
 
         """
-        # 实现特定于聊天的后处理
-        return inference_result
+        pass
 
 
-# 启动应用
-if __name__ == "__main__":
-    # 注册处理器
-    HandlerFactory.register_handler("/chat",
-                                    ChatAppHandler,
-                                    ChatHandler,
-                                    request_context=ChatRequest,
-                                    response_context=ChatResponse)
-    start_app()
+def create_route_handler(handler_type):
+    """
+    创建路由处理函数。
+    Args:
+        handler_type:
+
+    Returns:
+
+    """
+
+    async def route_handler(request: Request):
+        """
+        路由处理函数。
+        Args:
+            request:
+
+        Returns:
+
+        """
+        app_handler, request_handler = HandlerFactory.get_handler(handler_type)
+
+        request_model: Optional[Type[BaseModel]] = HandlerFactory._context[handler_type].get("request")
+        response_model: Optional[Type[BaseModel]] = HandlerFactory._context[handler_type].get("response")
+
+        if request.headers.get("logid"):
+            log_id = request.headers.get("logid")
+        else:
+            log_id = str(int(time.time() * 1000)) + str(random.randint(0, 9999))
+        LogHelper.set_logid(log_id)
+        LogHelper.info(f"Request handler type: {handler_type}")
+        try:
+            # 参数解析及校验处理
+            # request_body = await parse_request(request)
+            st = time.time()
+            # 获取请求体并解析为模型（如果定义了请求模型）
+            if request_model:
+                try:
+                    request_body = await request.json()
+                    request_data = request_model(**request_body)
+                except Exception as e:
+                    LogHelper.error(f"Failed to parse request: {e}")
+                    raise HTTPException(status_code=400, detail=str(e))
+            else:
+                request_data = await request.json()
+
+            st1 = time.time()
+
+            LogHelper.info(f"cost:{st1 - st} s, Request body: {request}, Parse Params: {request_data}")
+
+            # 前处理
+            pre_processed = request_handler.pre_process(request_data)
+
+            st2 = time.time()
+            LogHelper.info(f"cost:{st2 - st1} s, Pre processed: {pre_processed}")
+
+            # 推理
+            result = request_handler.run(pre_processed)
+            st3 = time.time()
+            LogHelper.info(f"cost:{st3 - st2} s, Inference result: {result}")
+
+            post_processed_result = request_handler.post_process(result)
+            st4 = time.time()
+            LogHelper.info(f"cost:{st4 - st3} s, Fromat result: {post_processed_result}")
+
+            # 如果定义了响应模型，将结果转换为该模型
+            if response_model:
+                response_data = response_model(**post_processed_result)
+                return response_data
+            else:
+                return post_processed_result
+        except Exception as e:
+            LogHelper.error(f"Failed to process request: {e}")
+            raise
+
+    return route_handler
+
+
+async def parse_request(request: Request):
+    """
+    解析请求体并返回 JSON 格式的数据。
+
+    Args:
+        request (Request): 请求对象，包含请求体数据。
+
+    Returns:
+        dict: 解析后的 JSON 格式数据。
+
+    Raises:
+        HTTPException: 如果请求体不是有效的 JSON 格式数据，则抛出 HTTPException 异常，异常的 status_code 为 400，detail 为 "Invalid JSON data"。
+    """
+    if request is None:
+        LogHelper.warning("Request is None")
+        return ""
+    try:
+        request_body = await request.json()
+    except json.JSONDecodeError:
+        LogHelper.error("Invalid JSON data")
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+    return request_body
+
+
+def start_app(host="0.0.0.0", port=8000):
+    """
+    启动 FastAPI 服务器
+
+    Args:
+        host (str, optional): 服务器监听的 IP 地址，默认为 "0.0.0.0"。
+        port (int, optional): 服务器监听的端口号，默认为 8000。
+
+    Returns:
+        FastAPI: FastAPI 应用实例。
+    """
+    app = FastAPI()
+
+    for handler_type, handler_cls in HandlerFactory._handlers.items():
+        route_handler = create_route_handler(handler_type)
+        LogHelper.debug(f"Register route: {handler_type}")
+        app.post(f"{handler_type}")(route_handler)
+
+    uvicorn.run(app, host=host, port=port)
+    return app
