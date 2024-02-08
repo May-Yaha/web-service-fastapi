@@ -1,7 +1,7 @@
+from pydantic import BaseModel
+
 from yaha.web_api.web_service import ConfigHandler, RequestHandler, start_app
 from yaha.web_api.factory import HandlerFactory
-
-from pydantic import BaseModel
 
 
 class ChatRequest(BaseModel):
