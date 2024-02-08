@@ -1,0 +1,7 @@
+-e .
+
+GPUtil>=1.4.0
+psutil
+uvicorn
+fastapi
+pydantic

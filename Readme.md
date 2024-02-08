@@ -12,7 +12,7 @@ git clone https://github.com/May-Yaha/web-service-fastapi.git
 
 # 安装依赖
 cd web-service-fastapi
-pip install -e .
+pip install -r requirements.txt
 ```
 
 # 快速体验
@@ -23,7 +23,7 @@ git clone https://github.com/May-Yaha/web-service-fastapi.git
 
 # 安装依赖
 cd web-service-fastapi
-pip install -e .
+pip install -r requirements.txt
 
 # 启动服务
 python example/simple.py
