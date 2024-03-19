@@ -141,7 +141,12 @@ class LogHelper:
         logging.setLogRecordFactory(CustomLogRecord)
         cls._logger = logging.getLogger()
         formatter = CustomFormatter(
-            '[%(asctime)s] [pid:%(process)d] [level:%(levelname)s] [logid:%(logid)s] %(message)s')
+            '[%(asctime)s] '
+            '[pid:%(process)d] '
+            '[level:%(levelname)s] '
+            '[logid:%(logid)s] '
+            '[%(pathname)s:%(lineno)d] '
+            '%(message)s')
 
         # 根据是否提供了log_file参数来添加不同的handler
         if log_file:
