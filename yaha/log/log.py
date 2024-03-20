@@ -6,7 +6,7 @@ import os
 import random
 import threading
 import time
-
+import inspect
 import GPUtil
 import psutil
 
@@ -214,10 +214,29 @@ class LogHelper:
             None
         """
         if cls._logger:
+            # 获取调用日志方法的上下文信息
+            frame = inspect.currentframe()
+            depth = 2  # 假定_log被info, debug等方法调用，调整这个值以正确反映调用栈深度
+            while depth and frame:
+                frame = frame.f_back
+                depth -= 1
+
+            # 从frame中提取文件名和行号
+            co = frame.f_code
+            file_name = os.path.basename(co.co_filename)
+            line_no = frame.f_lineno
+
+            # 准备日志记录的上下文信息
             cpu, mem, gpu = cls._get_system_usage()
             logid = getattr(cls._thread_local, 'logid', 'default')
-            log_message = f'[CPU: {cpu}] [Memory: {mem}] [GPU: {gpu}] {message} '
-            cls._logger.log(level, log_message, extra={'logid': logid})
+            log_message = f'{message} [CPU: {cpu}] [Memory: {mem}] [GPU: {gpu}]'
+
+            # 创建一个LogRecord对象
+            record = cls._logger.makeRecord(cls._logger.name, level, file_name, line_no, log_message, None, None,
+                                            func=co.co_name, extra={'logid': logid})
+
+            # 使用_logger处理LogRecord
+            cls._logger.handle(record)
 
     @classmethod
     def info(cls, message):
