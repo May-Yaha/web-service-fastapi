@@ -229,7 +229,7 @@ class LogHelper:
             # 准备日志记录的上下文信息
             cpu, mem, gpu = cls._get_system_usage()
             logid = getattr(cls._thread_local, 'logid', 'default')
-            log_message = f'{message} [CPU: {cpu}] [Memory: {mem}] [GPU: {gpu}]'
+            log_message = f'[CPU: {cpu}] [Memory: {mem}] [GPU: {gpu}] {message}'
 
             # 创建一个LogRecord对象
             record = cls._logger.makeRecord(cls._logger.name, level, file_name, line_no, log_message, None, None,
