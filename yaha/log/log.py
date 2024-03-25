@@ -10,6 +10,8 @@ import inspect
 import GPUtil
 import psutil
 
+from logging.handlers import TimedRotatingFileHandler, FileHandler
+
 
 class CustomLogRecord(logging.LogRecord):
     """
@@ -89,7 +91,7 @@ class LogHelper:
 
         """
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        handler = logging.handlers.TimedRotatingFileHandler(
+        handler = TimedRotatingFileHandler(
             filename, when="H", interval=1, backupCount=24 * 7)
         handler.suffix = "%Y%m%d%H"
 
@@ -107,7 +109,7 @@ class LogHelper:
         """
         # 如果提供了警告日志文件，则为警告日志设置单独的处理器
         warn_log_file = filename + '.wf'
-        warn_handler = logging.FileHandler(warn_log_file)
+        warn_handler = FileHandler(warn_log_file)
 
         return warn_handler
 
