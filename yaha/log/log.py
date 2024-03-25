@@ -10,7 +10,7 @@ import inspect
 import GPUtil
 import psutil
 
-from logging.handlers import TimedRotatingFileHandler, FileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 
 class CustomLogRecord(logging.LogRecord):
@@ -109,7 +109,7 @@ class LogHelper:
         """
         # 如果提供了警告日志文件，则为警告日志设置单独的处理器
         warn_log_file = filename + '.wf'
-        warn_handler = FileHandler(warn_log_file)
+        warn_handler = logging.FileHandler(warn_log_file)
 
         return warn_handler
 
